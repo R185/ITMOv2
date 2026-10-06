@@ -12,6 +12,9 @@
       "models": {
         "itmo-agent": {
           "name": "ITMO local 64k",
+          "options": {
+            "reasoningEffort": "none"
+          },
           "limit": {
             "context": 65536,
             "output": 4096
