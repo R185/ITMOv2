@@ -1,0 +1,39 @@
+schema: spec-driven
+
+context: |
+  Language: ru
+  All artifacts must be written in ru.
+  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+
+# Правила проекта (часть 2 практики 5): действуют на все будущие артефакты,
+# OpenSpec подставляет их в инструкции для агента. Форма меняется, смысл — нет.
+rules:
+  design:
+    - "Каждый design обязан содержать Mermaid-диаграмму взаимодействия: поток данных от CLI до ядра и обратно."
+    - "В design перечисли конкретные существующие тесты, которые покрывают решение, и назови файл нового теста."
+  specs:
+    - "В каждом сценарии сначала предусловие строкой `Given:`, затем WHEN и THEN."
+  tasks:
+    - "Каждая задача содержит команду или наблюдаемое поведение для проверки."
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always state what is out of scope
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing
