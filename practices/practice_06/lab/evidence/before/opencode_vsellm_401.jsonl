@@ -1,0 +1,2 @@
+{"type":"error","timestamp":1793252656199,"sessionID":"ses_e79cffe80ffeW0E2S66qjfvhU7","error":{"name":"UnknownError","data":{"message":"Model not found: ollama/itmo-agent. Did you mean: ollama-cloud?"}}}
+{"type":"error","timestamp":1793252656211,"sessionID":"ses_e79cffe80ffeW0E2S66qjfvhU7","error":{"name":"UnknownError","data":{"message":"Unexpected server error. Check server logs for details.","ref":"err_38093428"}}}

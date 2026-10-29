@@ -1,0 +1,9 @@
+{
+  "rss_kb_start": 28216,
+  "rss_kb_after_10000_bad_logins": 30504,
+  "rss_kb_after_1000_reviews": 32772,
+  "delta_logins_kb": 2288,
+  "delta_reviews_kb": 2268,
+  "reviews_html_bytes": 2609126,
+  "prompt_bytes": 2674366
+}
