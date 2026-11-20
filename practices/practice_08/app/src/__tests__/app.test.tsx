@@ -27,7 +27,7 @@ describe('Bug Triage Console', () => {
   })
 
   it('показывает пустое состояние, когда репортов нет', async () => {
-    server.use(http.get('/api/issues', () => HttpResponse.json([])))
+    server.use(http.get(/\/api\/issues$/, () => HttpResponse.json([])))
     renderApp()
     expect(await screen.findByText('Пока пусто')).toBeVisible()
   })
@@ -36,7 +36,7 @@ describe('Bug Triage Console', () => {
     const user = userEvent.setup()
     let calls = 0
     server.use(
-      http.get('/api/issues', () => {
+      http.get(/\/api\/issues$/, () => {
         calls += 1
         if (calls === 1) return HttpResponse.json({ message: 'сервис недоступен' }, { status: 502 })
         return HttpResponse.json([])
@@ -54,7 +54,7 @@ describe('Bug Triage Console', () => {
     const user = userEvent.setup()
     let posts = 0
     server.use(
-      http.post('/api/issues', () => {
+      http.post(/\/api\/issues$/, () => {
         posts += 1
         return HttpResponse.json({})
       })
@@ -82,7 +82,7 @@ describe('Bug Triage Console', () => {
     const user = userEvent.setup()
     let posts = 0
     server.use(
-      http.post('/api/issues', async ({ request }) => {
+      http.post(/\/api\/issues$/, async ({ request }) => {
         posts += 1
         const body = (await request.json()) as { title: string; body: string }
         await delay(300)
@@ -107,7 +107,7 @@ describe('Bug Triage Console', () => {
     const user = userEvent.setup()
     let posts = 0
     server.use(
-      http.post('/api/issues', () => {
+      http.post(/\/api\/issues$/, () => {
         posts += 1
         if (posts === 1) return HttpResponse.json({ message: 'трекер недоступен' }, { status: 500 })
         return HttpResponse.json({ number: 55, title: 't', body: 'b', state: 'open', labels: ['bug'], createdAt: '' }, { status: 201 })

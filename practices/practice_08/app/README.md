@@ -22,13 +22,17 @@ Material UI 6 (`@mui/material`) — кнопки, текстовые поля, �
 npm install        # зависимости
 npm run build      # сборка (tsc -b + vite build)
 cd ../server && node index.mjs   # статика + прокси к GitHub API
-# → http://127.0.0.1:8787
+# → http://127.0.0.1:8787 (локально)
+# публично: https://rreflector.com/bugs/
 ```
 
 Токен берётся из `GITHUB_TOKEN` или из `~/.config/gh/hosts.yml` (как у `gh`), в браузер не попадает.
 Репозиторий задаётся переменной `REPO` (по умолчанию `R185/itmo-ai-practice-07`).
 
 Разработка: `npm run dev` — Vite проксирует `/api` на `127.0.0.1:8787`.
+
+Прод: приложение собрано с `base: '/bugs/'`, поэтому статика и запросы идут по путям
+`/bugs/assets/...` и `/bugs/api/...`; Caddy срезает префикс (`docs/Caddyfile.snippet`).
 
 ## Тесты
 

@@ -23,12 +23,12 @@ export const seed: Issue[] = [
 ]
 
 export const handlers = [
-  http.get('/api/issues', async () => {
+  http.get(/\/api\/issues$/, async () => {
     await delay(10)
     return HttpResponse.json(seed)
   }),
 
-  http.post('/api/issues', async ({ request }) => {
+  http.post(/\/api\/issues$/, async ({ request }) => {
     const payload = (await request.json()) as { title: string; body: string }
     await delay(10)
     return HttpResponse.json(

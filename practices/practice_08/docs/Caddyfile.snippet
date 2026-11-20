@@ -1,0 +1,20 @@
+# rreflector.com — n8n (7.1/7.2) и консоль (8)
+rreflector.com {
+	encode zstd gzip
+
+	# приложение собрано с base=/bugs/, API тоже под /bugs/api
+	handle_path /bugs/* {
+		reverse_proxy 127.0.0.1:8787
+	}
+	@bugsRoot path /bugs
+	redir @bugsRoot /bugs/ 308
+
+	handle {
+		reverse_proxy 127.0.0.1:5678
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+}
