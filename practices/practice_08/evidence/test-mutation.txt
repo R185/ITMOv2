@@ -1,0 +1,7 @@
+# мутационная проверка: убран guard inFlight
+   ✓ Bug Triage Console > создаёт репорт и показывает его в списке 1429ms
+   × Bug Triage Console > не отправляет второй запрос при повторном клике во время ожидания 1542ms
+   ✓ Bug Triage Console > показывает понятную ошибку сервера и даёт повторить отправку 1269ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  src/__tests__/app.test.tsx > Bug Triage Console > не отправляет второй запрос при повторном клике во время ожидания
+      Tests  1 failed | 7 passed (8)

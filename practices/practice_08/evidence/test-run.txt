@@ -1,0 +1,13 @@
+$ npx vitest run
+ RUN  v2.1.9 /home/core/projects/ITMOv2/practices/practice_08/app
+
+ ✓ src/__tests__/app.test.tsx (8 tests) 4660ms
+   ✓ Bug Triage Console > создаёт репорт и показывает его в списке 1262ms
+   ✓ Bug Triage Console > не отправляет второй запрос при повторном клике во время ожидания 1621ms
+   ✓ Bug Triage Console > показывает понятную ошибку сервера и даёт повторить отправку 1070ms
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  08:56:37
+   Duration  5.98s (transform 120ms, setup 198ms, collect 578ms, tests 4.66s, environment 315ms, prepare 70ms)
+

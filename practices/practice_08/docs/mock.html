@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<title>Bug Triage Console — макет</title>
+<style>
+  :root{--primary:#4f46e5;--bg:#f6f7fb;--paper:#fff;--text:#1a1a2e;--muted:#6b7280;--err:#b3261e;--ok:#0f766e;--line:#e5e7eb}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 Inter,-apple-system,Segoe UI,sans-serif;padding:32px}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--muted);margin:0 0 28px}
+  .frames{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:28px}
+  .frame{background:var(--paper);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .frame>header{background:var(--primary);color:#fff;padding:12px 16px;font-weight:600;display:flex;justify-content:space-between}
+  .frame>header small{opacity:.85;font-weight:400}
+  .body{padding:16px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:14px}
+  .card{border:1px solid var(--line);border-radius:10px;padding:14px}
+  label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+  input,textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 10px;font:inherit}
+  input:focus,textarea:focus{outline:2px solid var(--primary);outline-offset:1px}
+  .err{border-color:var(--err)!important}
+  .errtext{color:var(--err);font-size:12px;margin-top:4px}
+  .btn{background:var(--primary);color:#fff;border:0;border-radius:8px;padding:9px 14px;font:inherit;font-weight:600;cursor:pointer}
+  .btn[disabled]{opacity:.6;cursor:progress}
+  .chip{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;border:1px solid var(--line);color:var(--muted)}
+  .chip.ok{border-color:#0f766e33;background:#0f766e12;color:var(--ok)}
+  .chip.work{border-color:#4f46e533;background:#4f46e512;color:var(--primary)}
+  .issue{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px}
+  .issue h4{margin:4px 0 6px;font-size:14px}
+  .issue p{margin:0;color:var(--muted);font-size:12px}
+  .skeleton{height:10px;border-radius:6px;background:linear-gradient(90deg,#eee,#f7f7f7,#eee);margin:6px 0}
+  .alert{border:1px solid #b3261e33;background:#b3261e0d;color:var(--err);border-radius:8px;padding:10px 12px;display:flex;justify-content:space-between;gap:10px;font-size:13px}
+  .empty{border:1px dashed var(--line);border-radius:10px;padding:26px;text-align:center;color:var(--muted)}
+  .note{grid-column:1/-1;color:var(--muted);font-size:12px;border-top:1px dashed var(--line);padding-top:10px}
+  .toast{background:#1a1a2e;color:#fff;border-radius:8px;padding:10px 14px;font-size:13px;display:inline-block}
+</style>
+</head>
+<body>
+<h1>Bug Triage Console — прототип</h1>
+<p class="sub">Сценарий: разработчик видит список репортов → отправляет новый баг → репорт появляется в списке со статусом. Фреймы 1–5: исходное состояние, ввод, загрузка, ошибка, успех.</p>
+
+<div class="frames">
+  <section class="frame">
+    <header><span>1. Список репортов</span><small>исходный экран</small></header>
+    <div class="body">
+      <div class="card">
+        <strong>Новый баг-репорт</strong>
+        <label>Заголовок</label><input placeholder="Что сломалось" />
+        <label>Шаги воспроизведения</label><textarea rows="3" placeholder="1. Открыть отчёт"></textarea>
+        <div style="margin-top:12px"><button class="btn">Отправить репорт</button></div>
+      </div>
+      <div>
+        <div class="issue"><span class="chip ok">Исправлен</span><h4>summary([]) падает на пустом списке</h4><p>PR #24 с исправлением</p></div>
+        <div class="issue"><span class="chip work">В работе</span><h4>percent_change падает при old = 0</h4><p>ZeroDivisionError при базовом значении 0</p></div>
+        <div class="issue"><span class="chip">Открыт</span><h4>Кнопка не реагирует на Enter</h4><p>Ожидалось отправление формы</p></div>
+      </div>
+      <div class="note">Слева форма, справа список. Один экран на весь сценарий — без переходов.</div>
+    </div>
+  </section>
+
+  <section class="frame">
+    <header><span>2. Ввод и валидация</span><small>ошибки полей</small></header>
+    <div class="body">
+      <div class="card">
+        <strong>Новый баг-репорт</strong>
+        <label>Заголовок</label><input class="err" value="баг" />
+        <div class="errtext">Заголовок короче 8 символов — опишите симптом</div>
+        <label>Шаги воспроизведения</label><textarea class="err" rows="3" placeholder="1. Открыть отчёт"></textarea>
+        <div class="errtext">Добавьте шаги воспроизведения (минимум 20 символов)</div>
+        <div style="margin-top:12px"><button class="btn">Отправить репорт</button></div>
+      </div>
+      <div>
+        <div class="issue"><span class="chip">Открыт</span><h4>Кнопка не реагирует на Enter</h4><p>Ожидалось отправление формы</p></div>
+        <div class="note">Ошибка под полем, а не в общем алерте: видно, что именно исправить. Фокус обведён 2px.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="frame">
+    <header><span>3. Загрузка</span><small>пока идёт запрос</small></header>
+    <div class="body">
+      <div class="card">
+        <strong>Новый баг-репорт</strong>
+        <label>Заголовок</label><input value="Отчёт падает на пустом списке" disabled />
+        <label>Шаги воспроизведения</label><textarea rows="3" disabled>Открыть отчёт, оставить список пустым</textarea>
+        <div style="margin-top:12px"><button class="btn" disabled>Отправляем…</button></div>
+        <div class="note">Поля и кнопка disabled, повторный submit отсекается guard-флагом в компоненте.</div>
+      </div>
+      <div>
+        <div class="issue"><div class="skeleton" style="width:60%"></div><div class="skeleton" style="width:90%"></div><div class="skeleton" style="width:40%"></div></div>
+        <div class="issue"><div class="skeleton" style="width:75%"></div><div class="skeleton" style="width:80%"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="frame">
+    <header><span>4. Ошибка</span><small>сервер недоступен</small></header>
+    <div class="body">
+      <div class="card">
+        <div class="alert"><span>GitHub 502: трекер недоступен</span><button class="btn" style="background:transparent;color:inherit;border:1px solid currentColor;padding:4px 10px">Понятно</button></div>
+        <div class="note">Введённые данные не стираются — можно повторить отправку.</div>
+      </div>
+      <div>
+        <div class="alert"><span>Не удалось загрузить список репортов</span><button class="btn" style="background:transparent;color:inherit;border:1px solid currentColor;padding:4px 10px">Повторить</button></div>
+        <div class="note" style="margin-top:10px">Для списка — retry с повторным запросом, для формы — сообщение и сохранённые поля.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="frame">
+    <header><span>5. Успех</span><small>репорт создан</small></header>
+    <div class="body">
+      <div class="card">
+        <strong>Новый баг-репорт</strong>
+        <label>Заголовок</label><input placeholder="Что сломалось" />
+        <label>Шаги воспроизведения</label><textarea rows="3" placeholder="1. Открыть отчёт"></textarea>
+        <div style="margin-top:12px"><button class="btn">Отправить репорт</button></div>
+      </div>
+      <div>
+        <div class="issue"><span class="chip work">В работе</span><h4>Отчёт падает на пустом списке</h4><p>#99 · только что</p></div>
+        <div class="issue"><span class="chip ok">Исправлен</span><h4>summary([]) падает на пустом списке</h4><p>PR #24 с исправлением</p></div>
+        <div style="margin-top:12px"><span class="toast">Репорт #99 создан</span></div>
+      </div>
+      <div class="note">Новый репорт встаёт первым, форма очищается, тост подтверждает результат.</div>
+    </div>
+  </section>
+</div>
+</body>
+</html>
