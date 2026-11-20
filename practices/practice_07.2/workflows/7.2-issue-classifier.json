@@ -1,0 +1,200 @@
+{
+  "name": "7.2 Issue Classifier (sub-workflow)",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "workflowInputs",
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "title",
+              "type": "string"
+            },
+            {
+              "name": "body",
+              "type": "string"
+            }
+          ]
+        },
+        "events": [
+          "worklfow_call"
+        ]
+      },
+      "id": "d5fb0064-2e17-4a6a-a1f7-cfc851066ce3",
+      "name": "When Called by Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        0,
+        300
+      ],
+      "typeVersion": 1.3
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\nconst it = $input.first().json;\nconst title = String(it.title || '').trim();\nconst body = String(it.body || '').trim().slice(0, 6000);\nreturn [{ json: { title, body: body || '(пусто)', author: it.author || 'unknown' } }];\n"
+      },
+      "id": "0ad903dd-39ce-4016-ae2c-9d0ab4f63c0f",
+      "name": "Prepare Issue Text",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        220,
+        300
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Определи тип GitHub issue.\n\nЗаголовок: {{ $json.title }}\nТело: {{ $json.body }}\n\nТипы: bug (сломанное поведение, ошибка, падение), task (работа, рефакторинг, документация, инфраструктура), feature (новая функциональность).\nconfidence — число от 0 до 1, насколько ты уверен.\n\nВерни только JSON вида {\"type\":\"bug\",\"confidence\":0.92}",
+        "prompt": "=Определи тип GitHub issue.\n\nЗаголовок: {{ $json.title }}\nТело: {{ $json.body }}\n\nТипы: bug (сломанное поведение, ошибка, падение), task (работа, рефакторинг, документация, инфраструктура), feature (новая функциональность).\nconfidence — число от 0 до 1, насколько ты уверен.\n\nВерни только JSON вида {\"type\":\"bug\",\"confidence\":0.92}",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "SystemMessagePromptTemplate",
+              "message": "Ты классификатор GitHub issues. Отвечай строго валидным JSON без markdown."
+            }
+          ]
+        },
+        "hasOutputParser": true
+      },
+      "id": "6da79a67-118a-43b9-955f-6f44d82b031d",
+      "name": "Classify Issue",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "position": [
+        440,
+        300
+      ],
+      "typeVersion": 1.9,
+      "credentials": {
+        "openAiApi": {
+          "id": "CGPj12Jk6roAbDyu",
+          "name": "VseLLM (openai-compatible)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "fromJson",
+        "jsonSchemaExample": "{\"type\": \"bug\", \"confidence\": 0.92}",
+        "autoFix": true
+      },
+      "id": "9a14fd5f-7a42-4e3f-824e-f7c38a1ad51e",
+      "name": "Structured Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "position": [
+        450,
+        540
+      ],
+      "typeVersion": 1.3
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "deepseek-flash"
+        },
+        "responsesApiEnabled": false,
+        "options": {
+          "temperature": 0
+        }
+      },
+      "id": "cb53b17a-c227-48e9-93f7-8b68841969f3",
+      "name": "LLM: deepseek-flash",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "position": [
+        450,
+        760
+      ],
+      "typeVersion": 1.3,
+      "credentials": {
+        "openAiApi": {
+          "id": "CGPj12Jk6roAbDyu",
+          "name": "VseLLM (openai-compatible)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\nlet out = {};\ntry {\n  const j = $input.first().json;\n  out = j.output && typeof j.output === 'object' ? j.output : JSON.parse(String(j.text || '{}'));\n} catch (e) { out = {}; }\n\nconst allowed = ['bug', 'task', 'feature'];\nlet type = String(out.type || '').toLowerCase().trim();\nlet confidence = Number(out.confidence);\n\nif (!allowed.includes(type)) type = 'unknown';\nif (!Number.isFinite(confidence)) confidence = 0;\nif (confidence > 1) confidence = confidence / 100;\nconfidence = Math.max(0, Math.min(1, confidence));\n\nreturn [{ json: { type, confidence: Number(confidence.toFixed(2)),\n  raw_type: out.type ?? null, title: $('Prepare Issue Text').first().json.title } }];\n"
+      },
+      "id": "6e1f0bf0-c944-4e0c-bf39-4b37c1a88563",
+      "name": "Return type + confidence",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        680,
+        300
+      ],
+      "typeVersion": 2
+    }
+  ],
+  "connections": {
+    "When Called by Workflow": {
+      "main": [
+        [
+          {
+            "node": "Prepare Issue Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Issue Text": {
+      "main": [
+        [
+          {
+            "node": "Classify Issue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Issue": {
+      "main": [
+        [
+          {
+            "node": "Return type + confidence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Classify Issue",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM: deepseek-flash": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Classify Issue",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Structured Output Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "tags": []
+}

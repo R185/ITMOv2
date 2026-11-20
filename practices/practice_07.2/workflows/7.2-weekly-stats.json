@@ -1,0 +1,567 @@
+{
+  "name": "7.2 Weekly Stats",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "661554f6-5454-4c09-a261-3e7ad7ed7479",
+      "name": "Run Manually",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [
+        0,
+        200
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * MON"
+            }
+          ]
+        }
+      },
+      "id": "2f6a4abe-3824-4845-b13b-7d9f79fdc9ee",
+      "name": "Every Monday 09:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [
+        0,
+        400
+      ],
+      "typeVersion": 1.4
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a806eec3-d986-4ce2-aca0-4746aa855098",
+              "name": "owner",
+              "value": "R185",
+              "type": "string"
+            },
+            {
+              "id": "41c5049a-b455-44e2-8846-2a59031c8ba9",
+              "name": "repo",
+              "value": "itmo-ai-practice-07",
+              "type": "string"
+            },
+            {
+              "id": "ab37c962-5870-4ac2-8395-979d2d92ee95",
+              "name": "email",
+              "value": "mdr185x@gmail.com",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "0b2adaf7-cd0d-400a-b299-98797c68f8e6",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        220,
+        300
+      ],
+      "typeVersion": 3.5
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\nconst now = new Date();\nconst day = now.getUTCDay();                 // 0=вс\nconst monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));\nconst back = (day + 6) % 7;                  // дней назад до понедельника\nmonday.setUTCDate(monday.getUTCDate() - back);\nconst prev = new Date(monday); prev.setUTCDate(prev.getUTCDate() - 7);\nconst iso = (d) => d.toISOString().slice(0, 10);\n\nreturn [{ json: {\n  owner: $json.owner, repo: $json.repo, email: $json.email,\n  week_start: iso(monday), prev_week_start: iso(prev),\n  since: iso(monday), until: iso(new Date()) } }];\n"
+      },
+      "id": "9212f44e-e436-4a3d-a83b-71f091ff0700",
+      "name": "Week Range",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        440,
+        300
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "url": "=https://api.github.com/search/issues?q=repo:{{ $('Week Range').first().json.owner }}/{{ $('Week Range').first().json.repo }}+is:issue+created:>={{ $('Week Range').first().json.since }}&per_page=100&sort=created&order=desc",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4dd4b466-27e6-49d4-8e75-8f693a652ca3",
+      "name": "Issues: created this week",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        660,
+        140
+      ],
+      "typeVersion": 4.5,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "tAGP0pQBOyajAWD9",
+          "name": "GitHub Bearer (R185)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.github.com/search/issues?q=repo:{{ $('Week Range').first().json.owner }}/{{ $('Week Range').first().json.repo }}+is:issue+closed:>={{ $('Week Range').first().json.since }}&per_page=100",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "19b27d6e-c19d-4912-a12c-ed60f6851c80",
+      "name": "Issues: closed this week",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        660,
+        300
+      ],
+      "typeVersion": 4.5,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "tAGP0pQBOyajAWD9",
+          "name": "GitHub Bearer (R185)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.github.com/repos/{{ $('Week Range').first().json.owner }}/{{ $('Week Range').first().json.repo }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "54b00f6c-c307-472c-9aff-e425af7e3db9",
+      "name": "Repo snapshot",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        660,
+        460
+      ],
+      "typeVersion": 4.5,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "tAGP0pQBOyajAWD9",
+          "name": "GitHub Bearer (R185)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.github.com/search/issues?q=repo:{{ $('Week Range').first().json.owner }}/{{ $('Week Range').first().json.repo }}+is:pr+merged:>={{ $('Week Range').first().json.since }}&per_page=100",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1477774e-4875-4115-ad4a-255373e58b6e",
+      "name": "PRs: merged this week",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        660,
+        620
+      ],
+      "typeVersion": 4.5,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "tAGP0pQBOyajAWD9",
+          "name": "GitHub Bearer (R185)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\nconst created = $('Issues: created this week').first().json;\nconst closed = $('Issues: closed this week').first().json;\nconst repoInfo = $('Repo snapshot').first().json;\nconst merged = $('PRs: merged this week').first().json;\nconst cfg = $('Week Range').first().json;\n\nconst labelsOf = (it) => (it.labels || []).map(l => typeof l === 'string' ? l : l.name);\nconst issues = created.items || [];\n\nconst byType = { bug: 0, task: 0, feature: 0, 'needs-triage': 0, other: 0 };\nconst byAuthor = {};\nconst typeOf = (it) => {\n  const ls = labelsOf(it);\n  for (const t of ['bug', 'task', 'feature', 'needs-triage']) if (ls.includes(t)) return t;\n  return 'other';\n};\n\nfor (const it of issues) {\n  byType[typeOf(it)]++;\n  const a = it.user ? it.user.login : 'unknown';\n  byAuthor[a] = (byAuthor[a] || 0) + 1;\n}\n\nconst sortedAuthors = Object.entries(byAuthor).sort((a, b) => b[1] - a[1]);\n\nreturn [{ json: {\n  week_start: cfg.week_start, prev_week_start: cfg.prev_week_start,\n  owner: cfg.owner, repo: cfg.repo, email: cfg.email,\n  total_created: issues.length,\n  total_closed: (closed.items || []).length,\n  total_merged_prs: (merged.items || []).length,\n  open_issues: repoInfo.open_issues_count ?? 0,\n  stars: repoInfo.stargazers_count ?? 0,\n  by_type: byType,\n  by_author: Object.fromEntries(sortedAuthors),\n  top_authors: sortedAuthors.slice(0, 5).map(([login, n]) => `${login} (${n})`).join(', ') || '—',\n} }];\n"
+      },
+      "id": "4925ccad-6c8e-4936-8c9a-e5fdcb17ea7f",
+      "name": "Group Stats",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        900,
+        300
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "0YecZLbSV3HkcyaV",
+          "cachedResultName": "weekly_stats"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "week_start",
+              "condition": "lt",
+              "keyValue": "={{ $json.week_start }}"
+            }
+          ]
+        },
+        "returnAll": false,
+        "limit": 1,
+        "orderBy": true,
+        "orderByColumn": "week_start",
+        "orderByDirection": "DESC",
+        "options": {}
+      },
+      "id": "206775e0-1d1a-435d-b50c-b6f23fe85b91",
+      "name": "Last Week From Data Table",
+      "type": "n8n-nodes-base.dataTable",
+      "position": [
+        1120,
+        300
+      ],
+      "typeVersion": 1.1,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\nconst cur = $('Group Stats').first().json;\nconst rows = $input.all().map(i => i.json).filter(r => r && r.week_start && r.week_start !== cur.week_start);\nconst prevRow = rows[0];\n\nlet prev = null;\nif (prevRow) {\n  try { prev = { week_start: prevRow.week_start, total: Number(prevRow.total || 0),\n                 by_type: JSON.parse(prevRow.by_type || '{}') }; } catch (e) { prev = null; }\n}\n\nconst dTotal = prev ? cur.total_created - prev.total : null;\n\n// запасной вариант: если в таблице ещё нет прошлой недели — берём нули и честно помечаем\nconst source = prev ? 'Data Table (weekly_stats)' : 'нет прошлой недели в Data Table';\nconst prevTypes = prev ? prev.by_type : {};\nconst dType = {};\nfor (const t of Object.keys(cur.by_type)) dType[t] = (cur.by_type[t] || 0) - (Number(prevTypes[t]) || 0);\n\nreturn [{ json: { ...cur, prev, delta_total: dTotal, delta_by_type: dType, delta_source: source } }];\n"
+      },
+      "id": "9cee018f-7bce-44e2-a9a4-2ea337aa108b",
+      "name": "Compute Delta",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1340,
+        300
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Ты аналитик open-source проекта. Напиши 3-4 предложения о неделе на русском.\n\nДанные недели ({{ $json.week_start }}): всего создано {{ $json.total_created }}, закрыто {{ $json.total_closed }}, смержено PR {{ $json.total_merged_prs }}.\nПо типам: {{ JSON.stringify($json.by_type) }}\nИзменение к прошлой неделе: {{ $json.delta_total === null ? 'нет данных' : $json.delta_total }}\nПо типам Δ: {{ JSON.stringify($json.delta_by_type) }}\nАктивные авторы: {{ $json.top_authors }}\n\nПиши по делу: что выросло, что упало, на что смотреть. Без вступлений и markdown.",
+        "prompt": "=Ты аналитик open-source проекта. Напиши 3-4 предложения о неделе на русском.\n\nДанные недели ({{ $json.week_start }}): всего создано {{ $json.total_created }}, закрыто {{ $json.total_closed }}, смержено PR {{ $json.total_merged_prs }}.\nПо типам: {{ JSON.stringify($json.by_type) }}\nИзменение к прошлой неделе: {{ $json.delta_total === null ? 'нет данных' : $json.delta_total }}\nПо типам Δ: {{ JSON.stringify($json.delta_by_type) }}\nАктивные авторы: {{ $json.top_authors }}\n\nПиши по делу: что выросло, что упало, на что смотреть. Без вступлений и markdown.",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "SystemMessagePromptTemplate",
+              "message": "Ты краткий аналитик. Пиши по-русски, без воды."
+            }
+          ]
+        },
+        "hasOutputParser": false
+      },
+      "id": "6de157eb-1da1-49da-b2a1-57be5c8fbe20",
+      "name": "AI Weekly Comment",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "position": [
+        1560,
+        300
+      ],
+      "typeVersion": 1.9
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "deepseek-flash"
+        },
+        "responsesApiEnabled": false,
+        "options": {
+          "temperature": 0.4
+        }
+      },
+      "id": "081265a7-9bf7-4eec-90d5-cf80a2e52cc5",
+      "name": "LLM: deepseek-flash (stats)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "position": [
+        1570,
+        520
+      ],
+      "typeVersion": 1.3,
+      "credentials": {
+        "openAiApi": {
+          "id": "CGPj12Jk6roAbDyu",
+          "name": "VseLLM (openai-compatible)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\nconst d = $('Compute Delta').first().json;\nconst ai = String($input.first().json.text || $input.first().json.output || '').trim();\nconst a = (v) => v === null || v === undefined ? '—' : (v > 0 ? '+' + v : String(v));\nconst color = (v) => v === null ? '#888' : v > 0 ? '#0a7' : v < 0 ? '#c33' : '#888';\n\nconst typeRows = Object.entries(d.by_type).map(([t, n]) =>\n  `<tr><td style=\"padding:4px 12px\">${t}</td><td style=\"padding:4px 12px;text-align:right\">${n}</td>\n   <td style=\"padding:4px 12px;text-align:right;color:${color(d.delta_by_type[t])}\">${a(d.delta_by_type[t])}</td></tr>`).join('');\n\nconst authorRows = Object.entries(d.by_author).map(([login, n]) =>\n  `<tr><td style=\"padding:4px 12px\">${login}</td><td style=\"padding:4px 12px;text-align:right\">${n}</td></tr>`).join('');\n\nconst subject = `Weekly stats ${d.owner}/${d.repo}: ${d.week_start}`;\nconst body = `<div style=\"font-family:system-ui,sans-serif;font-size:14px;color:#222\">\n<h2 style=\"margin:0 0 4px\">📊 Нагрузка ${d.owner}/${d.repo}</h2>\n<div style=\"color:#666\">неделя с ${d.week_start} · собрано ${new Date().toISOString().slice(0,16).replace('T',' ')} UTC</div>\n\n<table style=\"border-collapse:collapse;margin:16px 0\">\n<tr><td style=\"padding:4px 12px\">Создано issues</td><td style=\"padding:4px 12px;text-align:right\"><b>${d.total_created}</b></td>\n<td style=\"padding:4px 12px;text-align:right;color:${color(d.delta_total)}\">${a(d.delta_total)} к прошлой неделе</td></tr>\n<tr><td style=\"padding:4px 12px\">Закрыто issues</td><td style=\"padding:4px 12px;text-align:right\"><b>${d.total_closed}</b></td><td></td></tr>\n<tr><td style=\"padding:4px 12px\">Смержено PR</td><td style=\"padding:4px 12px;text-align:right\"><b>${d.total_merged_prs}</b></td><td></td></tr>\n<tr><td style=\"padding:4px 12px\">Открыто сейчас</td><td style=\"padding:4px 12px;text-align:right\"><b>${d.open_issues}</b></td><td></td></tr>\n</table>\n\n<h3>По типам</h3>\n<table style=\"border-collapse:collapse;border:1px solid #ddd\">\n<tr style=\"background:#f4f4f4\"><th style=\"padding:6px 12px;text-align:left\">Тип</th><th style=\"padding:6px 12px\">Кол-во</th><th style=\"padding:6px 12px\">Δ</th></tr>\n${typeRows}</table>\n\n<h3>По авторам</h3>\n<table style=\"border-collapse:collapse;border:1px solid #ddd\">\n<tr style=\"background:#f4f4f4\"><th style=\"padding:6px 12px;text-align:left\">Автор</th><th style=\"padding:6px 12px\">Issues</th></tr>\n${authorRows || '<tr><td colspan=\"2\" style=\"padding:6px 12px;color:#888\">нет данных</td></tr>'}</table>\n\n<h3>🤖 AI-комментарий недели</h3>\n<div style=\"background:#f8f9fb;border-left:3px solid #4a7;padding:10px 14px\">${ai || 'AI-комментарий недоступен'}</div>\n\n<div style=\"color:#999;margin-top:16px;font-size:12px\">Δ рассчитан по ${d.delta_source}; прошлая неделя: ${d.prev ? d.prev.week_start : '—'}</div>\n</div>`;\n\nreturn [{ json: { subject, html: body, email: d.email, week_start: d.week_start,\n  total: d.total_created, by_type: JSON.stringify(d.by_type), by_author: JSON.stringify(d.by_author),\n  delta_total: d.delta_total, delta_by_type: JSON.stringify(d.delta_by_type), ai_comment: ai } }];\n"
+      },
+      "id": "6637ab41-6c14-49dd-851b-091065668fe5",
+      "name": "Build HTML",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1780,
+        300
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $json.email }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.html }}",
+        "options": {}
+      },
+      "id": "7a2c62fd-bcea-4777-bd35-70416cd1c299",
+      "name": "Gmail: weekly report",
+      "type": "n8n-nodes-base.gmail",
+      "position": [
+        2000,
+        300
+      ],
+      "typeVersion": 2.2,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "eNHrUH4NIzc9mFKO",
+          "name": "Gmail OAuth2 (R185)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "0YecZLbSV3HkcyaV",
+          "cachedResultName": "weekly_stats"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "week_start": "={{ $('Build HTML').first().json.week_start }}",
+            "total": "={{ $('Build HTML').first().json.total }}",
+            "by_type": "={{ $('Build HTML').first().json.by_type }}",
+            "by_author": "={{ $('Build HTML').first().json.by_author }}",
+            "created_at": "={{ new Date().toISOString() }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "1df1bac6-9d8f-4ef1-bf77-8d2cc35fcd1a",
+      "name": "Save Week Stats",
+      "type": "n8n-nodes-base.dataTable",
+      "position": [
+        2220,
+        300
+      ],
+      "typeVersion": 1.1
+    }
+  ],
+  "connections": {
+    "Run Manually": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Every Monday 09:00": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Week Range",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Week Range": {
+      "main": [
+        [
+          {
+            "node": "Issues: created this week",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Issues: created this week": {
+      "main": [
+        [
+          {
+            "node": "Issues: closed this week",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Issues: closed this week": {
+      "main": [
+        [
+          {
+            "node": "Repo snapshot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Repo snapshot": {
+      "main": [
+        [
+          {
+            "node": "PRs: merged this week",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PRs: merged this week": {
+      "main": [
+        [
+          {
+            "node": "Group Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Group Stats": {
+      "main": [
+        [
+          {
+            "node": "Last Week From Data Table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Last Week From Data Table": {
+      "main": [
+        [
+          {
+            "node": "Compute Delta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Delta": {
+      "main": [
+        [
+          {
+            "node": "AI Weekly Comment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM: deepseek-flash (stats)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Weekly Comment",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Weekly Comment": {
+      "main": [
+        [
+          {
+            "node": "Build HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build HTML": {
+      "main": [
+        [
+          {
+            "node": "Gmail: weekly report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail: weekly report": {
+      "main": [
+        [
+          {
+            "node": "Save Week Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "tags": []
+}

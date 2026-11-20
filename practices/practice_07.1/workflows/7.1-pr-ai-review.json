@@ -1,0 +1,866 @@
+{
+  "name": "7.1 PR AI Review",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "github-review",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "44f233f4-3b0d-4087-bc45-d12c463b1a37",
+      "name": "GitHub Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        0,
+        300
+      ],
+      "typeVersion": 2.2,
+      "webhookId": "c5d55c2c-19c2-4cd7-93c0-0cf6f3080870"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\nconst h = $json.headers || {};\nconst ev = String(h['x-github-event'] || h['X-GitHub-Event'] || '');\nconst body = $json.body || $json;\nconst out = [];\n\nif (ev === 'pull_request' && body.action === 'opened') {\n  const pr = body.pull_request;\n  out.push({ command: 'pr_opened', model: 'main',\n    repo: body.repository.full_name, pr: pr.number, sha: pr.head.sha,\n    title: pr.title, author: pr.user.login });\n}\n\nif (ev === 'issue_comment' && body.action === 'created' && body.issue && body.issue.pull_request) {\n  const text = String(body.comment.body || '').trim();\n  const base = { repo: body.repository.full_name, pr: body.issue.number,\n    title: body.issue.title, author: body.comment.user.login, sha: null };\n  if (text.startsWith('/make_other_ai_review')) {\n    out.push({ ...base, command: 'make_other_ai_review', model: 'other' });\n  } else if (text.startsWith('/make_ai_review')) {\n    out.push({ ...base, command: 'make_ai_review', model: 'main' });\n  }\n}\n\nfor (const o of out) o.pr_key = o.repo + '#' + o.pr;\nif (!out.length) return [{ json: { skip: true } }];\nreturn out.map((o) => ({ json: o }));\n"
+      },
+      "id": "6e660a19-35c2-4458-a63e-da41ce55214b",
+      "name": "Parse Event",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        220,
+        300
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "662e0155-9d84-4ff2-9963-6a7a5c847744",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "4e34e1d1-efab-49ca-97ba-5b85572c108a",
+      "name": "Is Review Event?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        440,
+        300
+      ],
+      "typeVersion": 2.4
+    },
+    {
+      "parameters": {},
+      "id": "36af9137-42df-42fe-8b65-dcabef1b6962",
+      "name": "Ignore: not a review event",
+      "type": "n8n-nodes-base.noOp",
+      "position": [
+        660,
+        120
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "rowExists",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "DdmNWKvt38Ahanz6",
+          "cachedResultName": "reviewed_prs"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "pr_key",
+              "condition": "eq",
+              "keyValue": "={{ $json.pr_key }}"
+            },
+            {
+              "keyName": "model",
+              "condition": "eq",
+              "keyValue": "={{ $json.model }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a039abf1-d77b-407d-9233-5537bd8f37be",
+      "name": "Already Reviewed?",
+      "type": "n8n-nodes-base.dataTable",
+      "position": [
+        660,
+        300
+      ],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {},
+      "id": "127b1fd3-3b03-437f-b44f-0cf2e802425e",
+      "name": "Skip: already reviewed",
+      "type": "n8n-nodes-base.noOp",
+      "position": [
+        880,
+        220
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "rowNotExists",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "DdmNWKvt38Ahanz6",
+          "cachedResultName": "reviewed_prs"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "pr_key",
+              "condition": "eq",
+              "keyValue": "={{ $json.pr_key }}"
+            },
+            {
+              "keyName": "model",
+              "condition": "eq",
+              "keyValue": "={{ $json.model }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c03f215f-b6d1-4c33-bc84-709b38c992cc",
+      "name": "Not Reviewed",
+      "type": "n8n-nodes-base.dataTable",
+      "position": [
+        660,
+        480
+      ],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "url": "=https://api.github.com/repos/{{ $json.repo }}/pulls/{{ $json.pr }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7bd5203b-fa0b-432e-8cd2-07df14c3c2e3",
+      "name": "Get PR Meta",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        880,
+        480
+      ],
+      "typeVersion": 4.5,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "tAGP0pQBOyajAWD9",
+          "name": "GitHub Bearer (R185)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.github.com/repos/{{ $json.base.repo.full_name }}/pulls/{{ $json.number }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github.v3.diff"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "27022402-bf3a-40c2-9667-5e5d8c32c957",
+      "name": "Get PR Diff",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1100,
+        480
+      ],
+      "typeVersion": 4.5,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "tAGP0pQBOyajAWD9",
+          "name": "GitHub Bearer (R185)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// unified diff -> блоки файлов с номерами строк в новой версии\nconst raw = $input.first().json.data || '';\nconst lines = String(raw).split('\\n');\nconst files = [];\nlet cur = null, file = null, oldNo = 0, newNo = 0;\n\nfor (const line of lines) {\n  if (line.startsWith('diff --git ')) {\n    const m = line.match(/^diff --git a\\/(.+?) b\\/(.+)$/);\n    file = m ? m[2] : null; cur = null; continue;\n  }\n  if (line.startsWith('@@')) {\n    const m = line.match(/^@@ -(\\d+)(?:,\\d+)? \\+(\\d+)(?:,\\d+)? @@/);\n    if (!m || !file) continue;\n    oldNo = parseInt(m[1], 10); newNo = parseInt(m[2], 10);\n    cur = { file, block: files.filter(f => f.file === file).length + 1, start: newNo, lines: [] };\n    files.push(cur); continue;\n  }\n  if (!cur) continue;\n  if (line.startsWith('+') && !line.startsWith('+++')) {\n    cur.lines.push({ n: newNo, t: '+', text: line.slice(1) }); newNo++;\n  } else if (line.startsWith('-') && !line.startsWith('---')) {\n    oldNo++;\n  } else {\n    cur.lines.push({ n: newNo, t: ' ', text: line.slice(1) }); newNo++; oldNo++;\n  }\n}\n\nconst blocks = [];\nfor (const f of files) {\n  if (!f.lines.length) continue;\n  const added = f.lines.filter(l => l.t === '+');\n  if (!added.length) continue;\n  blocks.push({ path: f.file, block: f.block, start_line: f.start,\n    added_lines: added.map(l => l.n),\n    code: f.lines.map(l => `${l.n}|${l.t}${l.text}`).join('\\n') });\n}\n\nconst budget = 60000;\nlet used = 0; const kept = [];\nfor (const b of blocks) {\n  if (used + b.code.length > budget) break;\n  used += b.code.length; kept.push(b);\n}\n\n// готовый текст для промпта — собираем здесь, чтобы не городить выражения в ноде промпта\nconst diffText = kept.map(b =>\n  `### ${b.path} (блок ${b.block}, добавленные строки: ${b.added_lines.join(', ')})\\n${b.code}`\n).join('\\n\\n');\n\nconst p = $('Parse Event').first().json;\nreturn [{ json: {\n  repo: p.repo, pr: p.pr, model: p.model, command: p.command, pr_key: p.pr_key,\n  sha: $('Get PR Meta').first().json.head.sha,\n  title: $('Get PR Meta').first().json.title,\n  body: ($('Get PR Meta').first().json.body || '').slice(0, 4000),\n  blocks: kept, diff_text: diffText, diff_truncated: kept.length < blocks.length,\n}}];\n"
+      },
+      "id": "f0e6ce17-6adb-4251-b8d4-1a92b04b6ada",
+      "name": "Split Diff into Blocks",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1320,
+        480
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "cbd1ac9f-18df-4cb5-aec6-bfca81bd4e3c",
+                    "leftValue": "={{ $json.model }}",
+                    "rightValue": "main",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "main model"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "7ff0b15f-b282-46a0-80f8-2d8683b62fa4",
+                    "leftValue": "={{ $json.model }}",
+                    "rightValue": "other",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "second model"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "none"
+        }
+      },
+      "id": "e8964acc-4ce6-4479-9f3b-cfbc59e675c4",
+      "name": "Choose Model",
+      "type": "n8n-nodes-base.switch",
+      "position": [
+        1540,
+        480
+      ],
+      "typeVersion": 3.5
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Ты — ревьюер pull request. Отвечай JSON без markdown.\n\nРепозиторий: {{ $json.repo }}\nPR #{{ $json.pr }}: {{ $json.title }}\nОписание: {{ $json.body || '(пусто)' }}\n\nИзменённые блоки, формат строк \"номер|знак|код\" (+ добавлено, пробел контекст):\n{{ $json.diff_text }}\n\nВерни ровно такой JSON:\n{\"summary\": \"краткая оценка изменений, 2-4 предложения\", \"comments\": [{\"path\": \"путь из блоков\", \"line\": 12, \"side\": \"RIGHT\", \"severity\": \"major|minor|nit\", \"body\": \"замечание по делу\"}]}\n\nТребования: line — номер из поля added_lines, path строго из блоков. Не больше 8 комментариев. Если проблем нет — пустой массив comments. Только JSON.",
+        "prompt": "=Ты — ревьюер pull request. Отвечай JSON без markdown.\n\nРепозиторий: {{ $json.repo }}\nPR #{{ $json.pr }}: {{ $json.title }}\nОписание: {{ $json.body || '(пусто)' }}\n\nИзменённые блоки, формат строк \"номер|знак|код\" (+ добавлено, пробел контекст):\n{{ $json.diff_text }}\n\nВерни ровно такой JSON:\n{\"summary\": \"краткая оценка изменений, 2-4 предложения\", \"comments\": [{\"path\": \"путь из блоков\", \"line\": 12, \"side\": \"RIGHT\", \"severity\": \"major|minor|nit\", \"body\": \"замечание по делу\"}]}\n\nТребования: line — номер из поля added_lines, path строго из блоков. Не больше 8 комментариев. Если проблем нет — пустой массив comments. Только JSON.",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "SystemMessagePromptTemplate",
+              "message": "Ты строгий, но полезный код-ревьюер. Пиши по-русски, кратко, только замечания по делу. Отвечай только валидным JSON."
+            }
+          ]
+        },
+        "hasOutputParser": false
+      },
+      "id": "173a20a5-eeff-4ab8-8148-8e1510074b8f",
+      "name": "AI Reviewer: main model",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "position": [
+        1760,
+        320
+      ],
+      "typeVersion": 1.9
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "deepseek-flash"
+        },
+        "responsesApiEnabled": false,
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "7e410bd5-3114-4795-8a00-03f0631a85ed",
+      "name": "LLM: deepseek-flash (main)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "position": [
+        1770,
+        540
+      ],
+      "typeVersion": 1.3,
+      "credentials": {
+        "openAiApi": {
+          "id": "CGPj12Jk6roAbDyu",
+          "name": "VseLLM (openai-compatible)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Ты — ревьюер pull request. Отвечай JSON без markdown.\n\nРепозиторий: {{ $json.repo }}\nPR #{{ $json.pr }}: {{ $json.title }}\nОписание: {{ $json.body || '(пусто)' }}\n\nИзменённые блоки, формат строк \"номер|знак|код\" (+ добавлено, пробел контекст):\n{{ $json.diff_text }}\n\nВерни ровно такой JSON:\n{\"summary\": \"краткая оценка изменений, 2-4 предложения\", \"comments\": [{\"path\": \"путь из блоков\", \"line\": 12, \"side\": \"RIGHT\", \"severity\": \"major|minor|nit\", \"body\": \"замечание по делу\"}]}\n\nТребования: line — номер из поля added_lines, path строго из блоков. Не больше 8 комментариев. Если проблем нет — пустой массив comments. Только JSON.",
+        "prompt": "=Ты — ревьюер pull request. Отвечай JSON без markdown.\n\nРепозиторий: {{ $json.repo }}\nPR #{{ $json.pr }}: {{ $json.title }}\nОписание: {{ $json.body || '(пусто)' }}\n\nИзменённые блоки, формат строк \"номер|знак|код\" (+ добавлено, пробел контекст):\n{{ $json.diff_text }}\n\nВерни ровно такой JSON:\n{\"summary\": \"краткая оценка изменений, 2-4 предложения\", \"comments\": [{\"path\": \"путь из блоков\", \"line\": 12, \"side\": \"RIGHT\", \"severity\": \"major|minor|nit\", \"body\": \"замечание по делу\"}]}\n\nТребования: line — номер из поля added_lines, path строго из блоков. Не больше 8 комментариев. Если проблем нет — пустой массив comments. Только JSON.",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "SystemMessagePromptTemplate",
+              "message": "Ты старший инженер. Пиши по-русски, кратко, только замечания по делу. Отвечай только валидным JSON."
+            }
+          ]
+        },
+        "hasOutputParser": false
+      },
+      "id": "c5ed0242-7eaf-4fad-8b4c-b392024c52b9",
+      "name": "AI Reviewer: second model",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "position": [
+        1760,
+        740
+      ],
+      "typeVersion": 1.9
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "deepseek-v4-pro"
+        },
+        "responsesApiEnabled": false,
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "0ca0ea38-c2d6-4b90-940c-c6a99f6851f0",
+      "name": "LLM: deepseek-v4-pro (second)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "position": [
+        1770,
+        960
+      ],
+      "typeVersion": 1.3,
+      "credentials": {
+        "openAiApi": {
+          "id": "CGPj12Jk6roAbDyu",
+          "name": "VseLLM (openai-compatible)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\nconst src = $('Split Diff into Blocks').first().json;\nconst raw = String($input.first().json.text || $input.first().json.output || '').trim();\nconst clean = raw.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();\n\nlet parsed;\ntry {\n  const s = clean.indexOf('{'), e = clean.lastIndexOf('}');\n  parsed = JSON.parse(clean.slice(s, e + 1));\n} catch (err) {\n  parsed = { summary: clean.slice(0, 2000), comments: [] };\n}\n\nconst byPath = {};\nfor (const b of src.blocks) {\n  if (!byPath[b.path]) byPath[b.path] = [];\n  byPath[b.path].push(...b.added_lines);\n}\n\nconst modelName = src.model === 'main' ? 'deepseek-flash' : 'deepseek-v4-pro';\nconst out = [], seen = new Set();\nfor (const c of (parsed.comments || [])) {\n  const lines = byPath[c.path];\n  if (!lines || !lines.length) continue;\n  let line = Number(c.line);\n  if (!Number.isFinite(line)) line = lines[0];\n  if (!lines.includes(line)) line = lines.reduce((a, b) => Math.abs(b - line) < Math.abs(a - line) ? b : a, lines[0]);\n  const key = c.path + ':' + line;\n  if (seen.has(key)) continue;\n  seen.add(key);\n  const icon = c.severity === 'major' ? '🔴' : c.severity === 'minor' ? '🟡' : '⚪';\n  out.push({ json: {\n    repo: src.repo, pr: src.pr, pr_key: src.pr_key, model: src.model, sha: src.sha,\n    summary: parsed.summary || '',\n    comment: { path: c.path, line, side: 'RIGHT',\n      body: `${icon} **${c.severity || 'note'}** — ${c.body}\\n\\n_AI review (${modelName})_` } } });\n}\n\nif (!out.length) {\n  out.push({ json: { repo: src.repo, pr: src.pr, pr_key: src.pr_key, model: src.model,\n    sha: src.sha, summary: parsed.summary || 'Изменения без замечаний.', comment: null } });\n}\nreturn out;\n"
+      },
+      "id": "13d08dd3-e08f-4ac9-9234-814a94120ede",
+      "name": "Parse AI Comments",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1980,
+        480
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "bac395ff-91d5-4f61-80d2-300e86e7741a",
+      "name": "Each Comment",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [
+        2200,
+        480
+      ],
+      "typeVersion": 3
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "28ca680c-8a1a-43fc-8a85-fdffa959446b",
+              "leftValue": "={{ $json.comment }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d34a791f-57ce-40eb-ab2f-5d82266ab3d6",
+      "name": "Has Comment?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        2420,
+        480
+      ],
+      "typeVersion": 2.4
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.github.com/repos/{{ $json.repo }}/pulls/{{ $json.pr }}/comments",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ commit_id: $json.sha, path: $json.comment.path, line: $json.comment.line, side: $json.comment.side, body: $json.comment.body }) }}",
+        "options": {}
+      },
+      "id": "ba0efe1b-d8cc-4d65-be7a-ee4f23608ab6",
+      "name": "Post Inline Comment",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        2640,
+        620
+      ],
+      "typeVersion": 4.5,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "tAGP0pQBOyajAWD9",
+          "name": "GitHub Bearer (R185)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return [$input.first()];"
+      },
+      "id": "e0eb03ca-3088-48d6-af2b-5ce65f7d4bb6",
+      "name": "One Item for Summary",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        2530,
+        300
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.github.com/repos/{{ $('Parse AI Comments').first().json.repo }}/pulls/{{ $('Parse AI Comments').first().json.pr }}/reviews",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ commit_id: $('Parse AI Comments').first().json.sha, event: 'COMMENT', body: ($('Parse AI Comments').first().json.summary || 'Ревью выполнено') + '\\n\\n_модель: ' + ($('Parse AI Comments').first().json.model === 'main' ? 'deepseek-flash' : 'deepseek-v4-pro') + '_' }) }}",
+        "options": {}
+      },
+      "id": "8e65f099-33f1-4cbb-b83f-5c795614be74",
+      "name": "Post Review Summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        2640,
+        300
+      ],
+      "typeVersion": 4.5,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "tAGP0pQBOyajAWD9",
+          "name": "GitHub Bearer (R185)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return [$input.first()];"
+      },
+      "id": "3e93b8a2-426f-43fd-bd04-55e6e858d8f5",
+      "name": "One Row",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        2750,
+        300
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "DdmNWKvt38Ahanz6",
+          "cachedResultName": "reviewed_prs"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "pr_key": "={{ $('Parse Event').first().json.pr_key }}",
+            "repo": "={{ $('Parse Event').first().json.repo }}",
+            "pr_number": "={{ $('Parse Event').first().json.pr }}",
+            "model": "={{ $('Parse Event').first().json.model }}",
+            "reviewed_at": "={{ new Date().toISOString() }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "802b4734-9d9c-4579-8108-4f4733656caf",
+      "name": "Save Reviewed PR",
+      "type": "n8n-nodes-base.dataTable",
+      "position": [
+        2860,
+        300
+      ],
+      "typeVersion": 1.1
+    }
+  ],
+  "connections": {
+    "GitHub Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Event": {
+      "main": [
+        [
+          {
+            "node": "Is Review Event?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Review Event?": {
+      "main": [
+        [
+          {
+            "node": "Ignore: not a review event",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Already Reviewed?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Not Reviewed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Already Reviewed?": {
+      "main": [
+        [
+          {
+            "node": "Skip: already reviewed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Not Reviewed": {
+      "main": [
+        [
+          {
+            "node": "Get PR Meta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get PR Meta": {
+      "main": [
+        [
+          {
+            "node": "Get PR Diff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get PR Diff": {
+      "main": [
+        [
+          {
+            "node": "Split Diff into Blocks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Diff into Blocks": {
+      "main": [
+        [
+          {
+            "node": "Choose Model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Choose Model": {
+      "main": [
+        [
+          {
+            "node": "AI Reviewer: main model",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Reviewer: second model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Reviewer: main model": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Reviewer: second model": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM: deepseek-flash (main)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Reviewer: main model",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM: deepseek-v4-pro (second)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Reviewer: second model",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Comments": {
+      "main": [
+        [
+          {
+            "node": "Each Comment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Each Comment": {
+      "main": [
+        [
+          {
+            "node": "One Item for Summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Has Comment?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Comment?": {
+      "main": [
+        [
+          {
+            "node": "Post Inline Comment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "One Item for Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Inline Comment": {
+      "main": [
+        [
+          {
+            "node": "Each Comment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "One Item for Summary": {
+      "main": [
+        [
+          {
+            "node": "Post Review Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Review Summary": {
+      "main": [
+        [
+          {
+            "node": "One Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "One Row": {
+      "main": [
+        [
+          {
+            "node": "Save Reviewed PR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "tags": []
+}

@@ -1,0 +1,1487 @@
+{
+  "name": "7.2 Bug to Master",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "git-issue-fix",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "38d143d8-d802-43ef-9d97-53b960ae82dc",
+      "name": "GitHub Issue Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        -1400,
+        300
+      ],
+      "typeVersion": 2,
+      "webhookId": "b2f1c0de-7a31-4c55-9f11-07bugfix"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const b = $input.first().json.body || $input.first().json;\nconst issue = b.issue || {};\nconst labels = (issue.labels || []).map(l => String(l.name || l).toLowerCase());\nconst action = String(b.action || '');\nif (!issue.number || !['opened', 'labeled'].includes(action) || !labels.includes('bug')) {\n  return [];\n}\nconst repo = (b.repository && b.repository.full_name) || 'R185/itmo-ai-practice-07';\nreturn [{ json: {\n  repo, issue: issue.number,\n  title: String(issue.title || '').slice(0, 300),\n  body: String(issue.body || '').slice(0, 4000),\n  author: (issue.user && issue.user.login) || 'unknown',\n  branch: 'fix/issue-' + issue.number,\n  path: 'src/calc.py',\n}}];"
+      },
+      "id": "51163a29-9a68-4e92-bce8-fb2b78241889",
+      "name": "Parse Issue",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -1180,
+        300
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.github.com/repos/{{ $json.repo }}/contents/{{ $json.path }}?ref=main",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b55af61c-6976-4a78-abd5-d4c1ec9b5a54",
+      "name": "Get calc.py",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -960,
+        300
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "tAGP0pQBOyajAWD9",
+          "name": "GitHub Bearer (R185)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const it = $input.first().json;\nconst src = Buffer.from(String(it.content || '').replace(/\\n/g, ''), 'base64').toString('utf8');\nconst prev = $('Parse Issue').first().json;\nreturn [{ json: { ...prev, code: src, file_sha: it.sha, size: src.length } }];"
+      },
+      "id": "dfcf35d2-08a2-437b-94f6-46863bca2439",
+      "name": "Extract File",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -740,
+        300
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.github.com/repos/{{ $json.repo }}/contents/tests/test_calc.py?ref=main",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4b0dc49c-3373-4561-95d4-25c3fe65f398",
+      "name": "Get tests",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -520,
+        300
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "tAGP0pQBOyajAWD9",
+          "name": "GitHub Bearer (R185)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const it = $input.first().json;\nconst tests = Buffer.from(String(it.content || '').replace(/\\n/g, ''), 'base64').toString('utf8');\nconst p = $('Extract File').first().json;\nreturn [{ json: { ...p, tests } }];"
+      },
+      "id": "4eebd721-7da2-4c7b-9d4b-fd582735eb99",
+      "name": "Extract Tests",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -300,
+        300
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.github.com/repos/{{ $json.repo }}/git/ref/heads/main",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "41e35743-7688-41bb-8ba7-3689efbdb61c",
+      "name": "Get main Ref",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -80,
+        300
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "tAGP0pQBOyajAWD9",
+          "name": "GitHub Bearer (R185)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const p = $('Extract Tests').first().json;\nconst ref = $input.first().json;\nconst prompt = [\n  'Почини баг в Python-модуле. Верни ТОЛЬКО полный текст файла, без markdown-обёрток и пояснений.',\n  '',\n  'issue #' + p.issue + ': ' + p.title,\n  'описание:', p.body || '(пусто)',\n  '',\n  'файл ' + p.path + ' (текущее содержимое):',\n  p.code,\n  '',\n  'тесты, которые должны проходить:',\n  p.tests,\n  '',\n  'Требования: минимальное изменение, публичный API не ломать, старые тесты не сломать.'\n].join('\\n');\nreturn [{ json: { ...p, main_sha: (ref.object && ref.object.sha) || '', prompt } }];"
+      },
+      "id": "185acb7d-d1dd-4e81-9d27-09c17cdaea4c",
+      "name": "Build Prompt",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        140,
+        300
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.prompt }}",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "SystemMessagePromptTemplate",
+              "message": "Ты senior Python-инженер. Возвращай только код файла, без markdown и без пояснений."
+            }
+          ]
+        }
+      },
+      "id": "7f3ba4e4-c8bc-4fc4-97bc-95797291e8ba",
+      "name": "AI Patch",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "position": [
+        360,
+        300
+      ],
+      "typeVersion": 1.9
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "deepseek-flash"
+        },
+        "responsesApiEnabled": false,
+        "options": {
+          "temperature": 0,
+          "maxTokens": 4000
+        }
+      },
+      "id": "bfc9099f-6ba6-4a1e-b771-a1401f2ef954",
+      "name": "LLM: deepseek-flash",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "position": [
+        360,
+        700
+      ],
+      "typeVersion": 1.3,
+      "credentials": {
+        "openAiApi": {
+          "id": "CGPj12Jk6roAbDyu",
+          "name": "VseLLM (openai-compatible)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const out = $input.first().json;\nconst p = $('Build Prompt').first().json;\nlet code = String(out.text || out.output || '').trim();\nconst fenced = code.match(/```(?:python)?\\s*([\\s\\S]*?)```/);\nif (fenced) code = fenced[1].trim();\nconst looksLikeCode = /def\\s+\\w+\\s*\\(/.test(code) && !code.startsWith('{') && code.length > 100;\nconst changed = looksLikeCode && code !== String(p.code || '').trim();\nif (looksLikeCode && !code.endsWith('\\n')) code += '\\n';\nreturn [{ json: { ...p, new_content: looksLikeCode ? code : '',\n  content_b64: looksLikeCode ? Buffer.from(code, 'utf8').toString('base64') : '',\n  valid: looksLikeCode && changed, changed,\n  reason: !looksLikeCode ? 'модель вернула не код (' + code.length + ' симв.)' : (changed ? 'ok' : 'код не изменился') } }];"
+      },
+      "id": "bd8e86f8-7050-43cc-b6ea-8e1dca3ead5c",
+      "name": "Validate Patch",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        580,
+        300
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "16a60030-53e4-490f-97c3-dfdffd288942",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "56755056-8ff6-4632-b296-6e2c8fcb4763",
+      "name": "Valid?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        800,
+        300
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Предыдущая попытка не дала валидный код ({{ $json.reason }}).\n\nВерни ТОЛЬКО полный текст файла {{ $json.path }}, начиная с первой строки документации или import. Без markdown.\n\nissue #{{ $json.issue }}: {{ $json.title }}\n{{ $json.body }}\n\nтекущий файл:\n{{ $json.code }}\n\nтесты:\n{{ $json.tests }}",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "SystemMessagePromptTemplate",
+              "message": "Ты senior Python-инженер. Возвращай только код файла, без markdown и без пояснений."
+            }
+          ]
+        }
+      },
+      "id": "1199bf0c-bb6f-457b-b752-3167e23820db",
+      "name": "AI Patch Retry",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "position": [
+        1020,
+        520
+      ],
+      "typeVersion": 1.9
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "deepseek-flash"
+        },
+        "responsesApiEnabled": false,
+        "options": {
+          "temperature": 0,
+          "maxTokens": 4000
+        }
+      },
+      "id": "1b17b107-c41f-4553-b1d1-d5819e6cd339",
+      "name": "LLM: deepseek-flash retry",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "position": [
+        1020,
+        900
+      ],
+      "typeVersion": 1.3,
+      "credentials": {
+        "openAiApi": {
+          "id": "CGPj12Jk6roAbDyu",
+          "name": "VseLLM (openai-compatible)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const out = $input.first().json;\nconst p = $('Validate Patch').first().json;\nlet code = String(out.text || out.output || '').trim();\nconst fenced = code.match(/```(?:python)?\\s*([\\s\\S]*?)```/);\nif (fenced) code = fenced[1].trim();\nconst looksLikeCode = /def\\s+\\w+\\s*\\(/.test(code) && !code.trim().startsWith('{') && code.length > 100;\nconst changed = looksLikeCode && code !== String(p.code || '').trim();\nif (looksLikeCode && !code.endsWith('\\n')) code += '\\n';\nreturn [{ json: { ...p, new_content: looksLikeCode ? code : '',\n  content_b64: looksLikeCode ? Buffer.from(code, 'utf8').toString('base64') : '',\n  valid: looksLikeCode && changed, changed,\n  reason: !looksLikeCode ? 'повтор тоже не дал код' : (changed ? 'ok (retry)' : 'код не изменился') } }];"
+      },
+      "id": "acdc3152-e738-4a6a-bb8b-2d4cc2eb9148",
+      "name": "Validate Retry",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1240,
+        520
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "7bb27f6d-f374-47a0-9d82-33d7fe5ac0f9",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "aca1afb4-2f6d-44fd-bffe-cd0b45536a68",
+      "name": "Valid retry?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        1460,
+        520
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.github.com/repos/{{ $json.repo }}/issues/{{ $json.issue }}/comments",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ body: 'AI не смог подготовить патч: ' + $json.reason + '. Нужен человек.' }) }}"
+      },
+      "id": "cd4785cf-d1b3-4cba-9169-0712c0868abb",
+      "name": "Comment: no patch",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1680,
+        760
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "tAGP0pQBOyajAWD9",
+          "name": "GitHub Bearer (R185)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.github.com/repos/{{ $('Use Patch').first().json.repo }}/git/refs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ ref: 'refs/heads/' + $('Use Patch').first().json.branch, sha: $('Use Patch').first().json.main_sha }) }}"
+      },
+      "id": "db22db0b-0306-48d2-8cbe-6ce9fc062821",
+      "name": "Create Branch",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1680,
+        300
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "tAGP0pQBOyajAWD9",
+          "name": "GitHub Bearer (R185)"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://api.github.com/repos/{{ $('Use Patch').first().json.repo }}/contents/{{ $('Use Patch').first().json.path }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ message: 'fix: issue #' + $('Use Patch').first().json.issue + ' — ' + $('Use Patch').first().json.title, content: $('Use Patch').first().json.content_b64, branch: $('Use Patch').first().json.branch, sha: $('Use Patch').first().json.file_sha }) }}"
+      },
+      "id": "222b499b-5037-4425-b582-9a13f4c14ad3",
+      "name": "Commit Fix",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1900,
+        300
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "tAGP0pQBOyajAWD9",
+          "name": "GitHub Bearer (R185)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.github.com/repos/{{ $('Use Patch').first().json.repo }}/pulls",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ title: 'fix: issue #' + $('Use Patch').first().json.issue + ' — ' + $('Use Patch').first().json.title, head: $('Use Patch').first().json.branch, base: 'main', body: 'Fixes #' + $('Use Patch').first().json.issue + '\\n\\nПатч сгенерирован моделью deepseek-v4-pro по тексту issue, проверен CI и AI-ревью.\\n\\n_issue → патч → PR → ревью → мерж, без человека_' }) }}"
+      },
+      "id": "bfe4264a-1970-483b-b717-1603562b9669",
+      "name": "Open PR",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        2120,
+        300
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "tAGP0pQBOyajAWD9",
+          "name": "GitHub Bearer (R185)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 90,
+        "unit": "seconds"
+      },
+      "id": "7e0407ff-a189-4457-b7b1-bffb19fc4619",
+      "name": "Wait 90s",
+      "type": "n8n-nodes-base.wait",
+      "position": [
+        2340,
+        300
+      ],
+      "typeVersion": 1.1,
+      "webhookId": "b2f1c0de-7a31-4c55-9f11-wait01"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.github.com/repos/{{ $('Use Patch').first().json.repo }}/pulls/{{ $('Open PR').first().json.number }}/comments",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "84fd616c-38e0-4cae-81b6-52322bfba246",
+      "name": "Get PR Comments",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        2560,
+        300
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "tAGP0pQBOyajAWD9",
+          "name": "GitHub Bearer (R185)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.github.com/repos/{{ $('Use Patch').first().json.repo }}/pulls/{{ $('Open PR').first().json.number }}/reviews",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fd948d8f-29fa-4bc8-b979-ffde45837239",
+      "name": "Get Reviews",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        2670,
+        440
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "tAGP0pQBOyajAWD9",
+          "name": "GitHub Bearer (R185)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.github.com/repos/{{ $('Use Patch').first().json.repo }}/commits/{{ $('Open PR').first().json.head.sha }}/check-runs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "086d38c9-768a-4391-9724-9d4196273ef7",
+      "name": "Get Check Runs",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        2780,
+        300
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "tAGP0pQBOyajAWD9",
+          "name": "GitHub Bearer (R185)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const comments = $('Get PR Comments').all().map(i => i.json);\nconst checks = $input.first().json;\nconst reviews = $('Get Reviews').all().map(i => i.json);\nconst p = $('Use Patch').first().json;\nconst pr = $('Open PR').first().json;\n\nconst list = comments.filter(c => c && (c.body || c.path));\nconst meaningful = reviews.filter(r => String(r.body || '').trim().length > 0).length;\nconst major = list.filter(c => /🔴|\\bmajor\\b|blocker/i.test(String(c.body || ''))).length;\nconst runs = (checks.check_runs || []);\nconst states = runs.map(r => r.conclusion || r.status);\nconst anyFail = states.some(s => ['failure', 'cancelled', 'timed_out', 'action_required'].includes(s));\nconst allOk = runs.length > 0 && states.every(s => s === 'success');\n\nconst attempt = ($runIndex || 0) + 1;\n\nlet decision = 'revise', reason = '';\nif (meaningful === 0 && attempt < 6) { decision = 'wait'; reason = 'AI-ревью ещё не опубликовано, попытка ' + attempt; }\nelse if (allOk && major === 0) { decision = 'merge'; reason = 'тесты зелёные (' + runs.length + '), серьёзных замечаний нет'; }\nelse if (allOk && major > 0) { decision = 'arbitrate'; reason = 'ревьюер нашёл ' + major + ' major, нужен арбитраж'; }\nelse if (anyFail) { reason = 'тесты упали: ' + states.join(', '); }\nelse if (!runs.length || states.some(s => ['queued', 'in_progress', 'waiting'].includes(s))) {\n  if (attempt < 6) { decision = 'wait'; reason = 'CI ещё идёт, попытка ' + attempt; }\n  else { reason = 'CI не ответил за 6 попыток'; }\n}\nelse if (major > 0) { reason = 'AI-ревью: ' + major + ' серьёзных замечаний'; }\nelse { reason = 'условия мержа не выполнены'; }\n\nreturn [{ json: { repo: p.repo, issue: p.issue, pr: pr.number, branch: p.branch,\n  major, reviews: meaningful, runs: runs.length, states, decision, reason, attempt } }];"
+      },
+      "id": "d26978c7-02ac-4081-be22-af845f0d4c38",
+      "name": "Gate",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        3000,
+        300
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "id": "fdba8a28-fcde-4539-b45a-74937cdf0818",
+                    "leftValue": "={{ $json.decision }}",
+                    "rightValue": "merge",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "merge"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "id": "7c9e7055-22f1-4491-ba56-f7985ac1e1f2",
+                    "leftValue": "={{ $json.decision }}",
+                    "rightValue": "wait",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "wait"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "id": "cfe1a2c8-f408-4094-a4a3-77afe591458d",
+                    "leftValue": "={{ $json.decision }}",
+                    "rightValue": "revise",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "revise"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "id": "35a071f1-7bb5-4214-8ff2-e552ab8334a2",
+                    "leftValue": "={{ $json.decision }}",
+                    "rightValue": "arbitrate",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "arbitrate"
+            }
+          ],
+          "fallbackOutput": 2
+        },
+        "options": {}
+      },
+      "id": "10aac7e5-1c3e-4318-bf65-f6ecdfa6c831",
+      "name": "Switch Decision",
+      "type": "n8n-nodes-base.switch",
+      "position": [
+        3220,
+        300
+      ],
+      "typeVersion": 3
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://api.github.com/repos/{{ $json.repo }}/pulls/{{ $json.pr }}/merge",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ merge_method: 'squash', commit_title: 'fix: issue #' + $json.issue }) }}"
+      },
+      "id": "84297307-5da9-4516-a33f-a3e4cc4e527c",
+      "name": "Merge PR",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        3440,
+        160
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "tAGP0pQBOyajAWD9",
+          "name": "GitHub Bearer (R185)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const g = $('Gate').first().json;\nconst v = $('Parse Verdict').first().json || {};\nreturn [{ json: { repo: g.repo, issue: g.issue, pr: g.pr,\n  body: 'Исправлено автоматически: ' + (v.verdict_text || g.reason) + '. PR #' + g.pr + ' смержен в main.' } }];"
+      },
+      "id": "12e608e8-77de-408d-97da-0ba6240a6b2b",
+      "name": "Make Merge Comment",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        3660,
+        160
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.github.com/repos/{{ $json.repo }}/issues/{{ $json.issue }}/comments",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ body: $json.body }) }}"
+      },
+      "id": "c47b9794-3984-4c05-ab90-bd01e359838e",
+      "name": "Comment: merged",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        3880,
+        160
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "tAGP0pQBOyajAWD9",
+          "name": "GitHub Bearer (R185)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.github.com/repos/{{ $json.repo }}/issues/{{ $json.issue }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ state: 'closed', state_reason: 'completed' }) }}"
+      },
+      "id": "092d0641-79aa-48c6-94bd-fcc777fafdef",
+      "name": "Close Issue",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        4100,
+        160
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "tAGP0pQBOyajAWD9",
+          "name": "GitHub Bearer (R185)"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.github.com/repos/{{ $json.repo }}/issues/{{ $json.issue }}/comments",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ body: 'Автоматический фикс остановлен: ' + $json.reason + '. PR #' + $json.pr + ' оставлен открытым.' }) }}"
+      },
+      "id": "0af3c02f-3abc-407e-9cf1-f47472a68447",
+      "name": "Comment: needs work",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        3440,
+        640
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "tAGP0pQBOyajAWD9",
+          "name": "GitHub Bearer (R185)"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "1c1cebcc-299c-4b4f-b215-f2cd046ea837",
+      "name": "Loop back",
+      "type": "n8n-nodes-base.noOp",
+      "position": [
+        3440,
+        400
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return [$input.first()];"
+      },
+      "id": "60c06eca-c7c7-4b8c-bea1-0d5e8f702d85",
+      "name": "Use Patch",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1600,
+        400
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://api.github.com/repos/{{ $json.repo }}/git/refs/heads/{{ $json.branch }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "23050966-c278-41ad-820b-2418e4d3816f",
+      "name": "Delete old branch",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1600,
+        200
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "tAGP0pQBOyajAWD9",
+          "name": "GitHub Bearer (R185)"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Ты арбитр код-ревью. CI зелёный, но ревьюер поставил major-замечания. Реши, есть ли среди них реально блокирующие дефекты.\n\nissue #{{ $json.issue }}: {{ $json.reason }}\n\nзамечания ревьюера:\n{{ $('Get PR Comments').all().map(i => i.json.body).join('\\n\\n').slice(0, 4000) }}\n\nпатч (первые 3000 символов):\n{{ $('Use Patch').first().json.new_content.slice(0, 3000) }}\n\nОтветь одной строкой: BLOCK <причина> — если есть дефект, который нельзя мержить; PASS <причина> — если замечания неверны или несущественны.",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "SystemMessagePromptTemplate",
+              "message": "Ты senior Python-инженер. Возвращай только код файла, без markdown и без пояснений."
+            }
+          ]
+        }
+      },
+      "id": "33364166-f2dc-43f8-9ec7-01097ece4cc5",
+      "name": "Arbitrate",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "position": [
+        3440,
+        900
+      ],
+      "typeVersion": 1.9
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "deepseek-flash"
+        },
+        "responsesApiEnabled": false,
+        "options": {
+          "temperature": 0,
+          "maxTokens": 4000
+        }
+      },
+      "id": "bd4a317c-a769-4029-85a6-25ea0c81741c",
+      "name": "LLM: deepseek-flash arbiter",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "position": [
+        3440,
+        1150
+      ],
+      "typeVersion": 1.3,
+      "credentials": {
+        "openAiApi": {
+          "id": "CGPj12Jk6roAbDyu",
+          "name": "VseLLM (openai-compatible)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const g = $('Gate').first().json;\nconst t = String($input.first().json.text || '').trim();\nconst verdict = /^\\s*BLOCK/i.test(t) ? 'block' : (/^\\s*PASS/i.test(t) ? 'pass' : 'block');\nreturn [{ json: { ...g, verdict, verdict_text: t.slice(0, 400) } }];"
+      },
+      "id": "212ff091-cb53-418b-a09e-e14093483ae0",
+      "name": "Parse Verdict",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        3660,
+        900
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "67314b05-e9b5-4471-b5c1-70aeba102041",
+              "leftValue": "={{ $json.verdict }}",
+              "rightValue": "block",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5e738b5c-23ac-4b57-9917-23bb17cb27c7",
+      "name": "Blocking?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        3880,
+        900
+      ],
+      "typeVersion": 2
+    }
+  ],
+  "connections": {
+    "GitHub Issue Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Issue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Issue": {
+      "main": [
+        [
+          {
+            "node": "Get calc.py",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get calc.py": {
+      "main": [
+        [
+          {
+            "node": "Extract File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract File": {
+      "main": [
+        [
+          {
+            "node": "Get tests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get tests": {
+      "main": [
+        [
+          {
+            "node": "Extract Tests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Tests": {
+      "main": [
+        [
+          {
+            "node": "Get main Ref",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get main Ref": {
+      "main": [
+        [
+          {
+            "node": "Build Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Prompt": {
+      "main": [
+        [
+          {
+            "node": "AI Patch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM: deepseek-flash": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Patch",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Patch": {
+      "main": [
+        [
+          {
+            "node": "Validate Patch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Patch": {
+      "main": [
+        [
+          {
+            "node": "Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid?": {
+      "main": [
+        [
+          {
+            "node": "Use Patch",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Patch Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM: deepseek-flash retry": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Patch Retry",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Patch Retry": {
+      "main": [
+        [
+          {
+            "node": "Validate Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Retry": {
+      "main": [
+        [
+          {
+            "node": "Valid retry?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid retry?": {
+      "main": [
+        [
+          {
+            "node": "Use Patch",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Comment: no patch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Use Patch": {
+      "main": [
+        [
+          {
+            "node": "Delete old branch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete old branch": {
+      "main": [
+        [
+          {
+            "node": "Create Branch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Branch": {
+      "main": [
+        [
+          {
+            "node": "Commit Fix",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Commit Fix": {
+      "main": [
+        [
+          {
+            "node": "Open PR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Open PR": {
+      "main": [
+        [
+          {
+            "node": "Wait 90s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 90s": {
+      "main": [
+        [
+          {
+            "node": "Get PR Comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get PR Comments": {
+      "main": [
+        [
+          {
+            "node": "Get Reviews",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Reviews": {
+      "main": [
+        [
+          {
+            "node": "Get Check Runs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Check Runs": {
+      "main": [
+        [
+          {
+            "node": "Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gate": {
+      "main": [
+        [
+          {
+            "node": "Switch Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Decision": {
+      "main": [
+        [
+          {
+            "node": "Merge PR",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop back",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Comment: needs work",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Arbitrate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge PR": {
+      "main": [
+        [
+          {
+            "node": "Make Merge Comment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Make Merge Comment": {
+      "main": [
+        [
+          {
+            "node": "Comment: merged",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Comment: merged": {
+      "main": [
+        [
+          {
+            "node": "Close Issue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop back": {
+      "main": [
+        [
+          {
+            "node": "Wait 90s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM: deepseek-flash arbiter": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Arbitrate",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Arbitrate": {
+      "main": [
+        [
+          {
+            "node": "Parse Verdict",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Verdict": {
+      "main": [
+        [
+          {
+            "node": "Blocking?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Blocking?": {
+      "main": [
+        [
+          {
+            "node": "Comment: needs work",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge PR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "staticData": null
+}
